@@ -21,6 +21,8 @@ type Context struct {
 	RespStatus int    // 保存响应状态码
 	RespData   []byte
 
+	UserValues map[string]any
+
 	h          *HttpServer
 	queryCache url.Values
 }
@@ -36,6 +38,7 @@ func (c *Context) reset() {
 	c.Route = ""
 	c.h = nil
 	c.queryCache = nil
+	c.UserValues = nil
 }
 
 // ===============================
