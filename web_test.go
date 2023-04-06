@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
@@ -91,4 +92,30 @@ func TestWebWithInvalidMethod(t *testing.T) {
 			server.addRouter(tt.arg, "/", nil, nil)
 		})
 	}
+}
+
+func TestHttpServer_LoadHTMLFiles(t *testing.T) {
+	server := New()
+	server.LoadHTMLFiles("./testData/hello.tmpl")
+
+	server.GET("/hello", func(ctx *Context) {
+		ctx.HTML(http.StatusOK, "hello.tmpl", map[string]interface{}{
+			"name": "ray",
+		})
+	})
+
+	_ = server.Run(":8080")
+}
+
+func TestContext_File(t *testing.T) {
+	server := Default()
+	// http://127.0.0.1:8080/files/hello.tmpl
+	// http://127.0.0.1:8080/files?name=hello.tmpl
+	server.GET("/files/:name", func(ctx *Context) {
+		path := "G:\\go-project\\me\\web\\testData\\"
+		fileName := path + ctx.Param("name")
+		fmt.Println(fileName)
+		ctx.File(fileName)
+	})
+	_ = server.Run(":8080")
 }

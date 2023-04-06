@@ -1,10 +1,12 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/killlowkey/web/binding"
 	"net/http"
+	"net/url"
 )
 
 // Context 处理请求输入输出
@@ -18,6 +20,9 @@ type Context struct {
 	Route      string // 路由信息
 	RespStatus int    // 保存响应状态码
 	RespData   []byte
+
+	h          *HttpServer
+	queryCache url.Values
 }
 
 // reset 重置 Context，从 Context Pool 获取后需要进行重置
@@ -29,6 +34,8 @@ func (c *Context) reset() {
 	c.RespStatus = 200
 	c.RespData = c.RespData[:0]
 	c.Route = ""
+	c.h = nil
+	c.queryCache = nil
 }
 
 // ===============================
@@ -44,6 +51,34 @@ func (c *Context) Param(key string) string {
 		return ""
 	}
 	return res
+}
+
+// Query 查询 url 中参数值
+// GET /path?id=1234  => c.Query("id") == "1234"
+func (c *Context) Query(key string) (value string) {
+	value, _ = c.GetQuery(key)
+	return
+}
+func (c *Context) GetQuery(key string) (string, bool) {
+	if values, ok := c.GetQueryArray(key); ok {
+		return values[0], ok
+	}
+	return "", false
+}
+func (c *Context) GetQueryArray(key string) (values []string, ok bool) {
+	c.initQueryCache()
+	values, ok = c.queryCache[key]
+	return
+}
+
+func (c *Context) initQueryCache() {
+	if c.queryCache == nil {
+		if c.Request != nil {
+			c.queryCache = c.Request.URL.Query()
+		} else {
+			c.queryCache = url.Values{}
+		}
+	}
 }
 
 // BindJSON 绑定请求 body
@@ -112,4 +147,24 @@ func (c *Context) JSON(status int, val any) {
 		c.Header("Content-type", "application/json; charset=utf-8")
 		c.WriteWithStatus(status, data)
 	}
+}
+
+// HTML 渲染 HTML 模版
+func (c *Context) HTML(code int, name string, obj any) {
+	// TODO 错误示例，为了节省时间
+	var data = &bytes.Buffer{}
+
+	if err := c.h.templ.ExecuteTemplate(data, name, obj); err != nil {
+		c.WriteWithStatus(http.StatusInternalServerError, []byte(err.Error()))
+		return
+	}
+
+	c.Status(code)
+	c.Header("Content-type", "text/html; charset=utf-8")
+	c.Write(data.Bytes())
+}
+
+// File 文件服务器
+func (c *Context) File(filepath string) {
+	http.ServeFile(c.Writer, c.Request, filepath)
 }

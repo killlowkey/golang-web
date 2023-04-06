@@ -1,6 +1,7 @@
 package web
 
 import (
+	"html/template"
 	"log"
 	"net/http"
 	"sync"
@@ -21,6 +22,8 @@ type HttpServer struct {
 	pool sync.Pool
 
 	middlewares []Middleware
+
+	templ *template.Template
 }
 
 func New() *HttpServer {
@@ -62,6 +65,7 @@ func (h *HttpServer) ServeHTTP(writer http.ResponseWriter, request *http.Request
 	ctx.reset()
 	ctx.Request = request
 	ctx.Writer = writer
+	ctx.h = h
 
 	// 回写响应 Middleware
 	flush := func(next HandleFunc) HandleFunc {
@@ -133,4 +137,8 @@ func (h *HttpServer) Run(addr string) error {
 // RunTLS 启动 HTTPS 服务
 func (h *HttpServer) RunTLS(addr, certFile, keyFile string) error {
 	return http.ListenAndServeTLS(addr, certFile, keyFile, h)
+}
+
+func (h *HttpServer) LoadHTMLFiles(files ...string) {
+	h.templ = template.Must(template.New("").Delims("{{", "}}").ParseFiles(files...))
 }
